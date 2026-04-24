@@ -19,6 +19,7 @@ A classe Produto contém a descrição de um produto, e possui os seguintes mét
 * __String id()__: o valor do _productId_ definido pelo supermercado
 * __String marca()__: a marca do produto
 * __float preco()__: o preço do produto
+* __String ean()__: o código [EAN](https://www.totvs.com/blog/atacadista-distribuidor/ean-o-que-e/) do produto (esse é um código único, usado no código de barras)
 * __boolean disponivel()__: se o produto está disponível no supermercado
 
 Um exemplo de consulta a produtos de um supermercado está contido em _Main.java_:
