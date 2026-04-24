@@ -18,4 +18,11 @@ public class Bistek extends Supermercado {
         }
     }
 
+    public Produto obtem(String produto_id) {
+        try {
+            return super.obtem(produto_id);
+        } catch (URISyntaxException e) {
+            return null;
+        }
+    }
 }

@@ -42,7 +42,7 @@ public class Supermercado {
                     JSONArray jo = new JSONArray(response.body());
                     for (var o: jo) {
                         JSONObject obj = (JSONObject)o;
-                        r.adiciona(Produto.fromJson(obj, produto));
+                        r.adiciona(Produto.fromJson(obj));
                     }
                 }
             }

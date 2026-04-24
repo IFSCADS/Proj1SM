@@ -8,7 +8,6 @@ import org.json.JSONObject;
 @Value
 public class Produto {
         String nome;
-        String nome_especifico;
         String id;
         String marca;
         float preco;
@@ -40,12 +39,6 @@ public class Produto {
                 }
                 return pb;
 
-        }
-        static Produto fromJson(JSONObject obj, String nome) {
-                var pb = Produto.fromJsonBuilder(obj);
-                Produto prod = pb.nome_especifico(nome).build();
-
-                return prod;
         }
 
         static Produto fromJson(JSONObject obj) {
