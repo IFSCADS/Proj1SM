@@ -13,6 +13,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
 
 public class Supermercado {
@@ -22,7 +24,60 @@ public class Supermercado {
     final Pattern re_resources = Pattern.compile("(\\d+)-(\\d+)/(\\d+)", Pattern.CASE_INSENSITIVE);
     final int query_len = 40;
 
-    public record Resultado(String produto, ListaSequencial<Produto> produtos, int ultimo, int restantes) {}
+    public class Resultado implements Iterable<Produto> {
+        String produto;
+        int total;
+        ListaSequencial<Produto> produtos;
+        Supermercado sm;
+
+        Resultado(Supermercado sm, String produto, ListaSequencial<Produto> produtos, int total) {
+            this.produto = produto;
+            this.produtos = produtos;
+            this.total = total;
+            this.sm = sm;
+        }
+
+        @Override
+        public Iterador iterator() {
+            return new Iterador(produtos, total);
+        }
+
+        class Iterador implements Iterator<Produto> {
+            int total;
+            int inicio = 0;
+            int pos = 0;
+            ListaSequencial<Produto> produtos;
+
+            Iterador(ListaSequencial<Produto> produtos, int total) {
+                this.produtos = produtos;
+                this.total = total;
+            }
+
+            @Override
+            public boolean hasNext() {
+                return total > inicio + pos;
+            }
+
+            @Override
+            public Produto next() {
+                if (! hasNext()) {
+                    throw new NoSuchElementException("fim da iteração");
+                }
+                Produto prod = produtos.obtem(pos++);
+                if (pos >= produtos.comprimento()) {
+                    inicio = produtos.comprimento() + inicio;
+                    if (inicio < total) {
+                        produtos = sm.busca_proximo(produto, inicio);
+                        if (produtos != null) {
+                            pos = 0;
+                        }
+                    }
+                }
+                return prod;
+
+            }
+        }
+    }
 
     public Supermercado(String url)  {
         cliente = HttpClient.newHttpClient();
@@ -37,20 +92,13 @@ public class Supermercado {
         sb.append("&_from=");
         sb.append(Integer.toString(inicio));
         sb.append("&_to=");
-        sb.append(Integer.toString(inicio+query_len));
+        sb.append(Integer.toString(inicio+query_len-1));
 
         return sb.toString();
     }
 
-    public Resultado busca_proximo(Resultado previo) {
-        if (previo.restantes() > 0) {
-            return busca(previo.produto(), previo.ultimo() + 1);
-        }
-        return null;
-    }
-
-    public Resultado busca(String produto, int inicio) {
-        Resultado res = null;
+    HttpResponse<String> envia(String produto, int inicio) {
+        HttpResponse<String> response = null;
 
         try {
             HttpRequest req = HttpRequest.newBuilder()
@@ -61,45 +109,69 @@ public class Supermercado {
 
 
             try {
-                HttpResponse<String> response = cliente.send(req, HttpResponse.BodyHandlers.ofString());
-                int status = response.statusCode();
-                if (status == 200 || status == 206) {
-                    ListaSequencial<Produto> r = new ListaSequencial<>();
-                    var headers = response.headers().map();
-                    boolean isJson = headers.get("content-type").stream().anyMatch(x -> x.startsWith("application/json"));
-                    if (isJson) {
-                        JSONArray jo = new JSONArray(response.body());
-                        for (var o : jo) {
-                            JSONObject obj = (JSONObject) o;
-                            r.adiciona(Produto.fromJson(obj));
-                        }
-                    }
-
-                    String faixa = headers.get("resources").getFirst();
-                    var m = re_resources.matcher(faixa);
-                    int fim = inicio + r.comprimento() - 1, total = fim;
-                    if (m.find()) {
-                        inicio = Integer.parseInt(m.group(1));
-                        fim = Integer.parseInt(m.group(2));
-                        total = Integer.parseInt(m.group(3));
-                        fim = Math.min(fim, total);
-                    }
-                    res = new Resultado(produto, r, fim, total - fim);
-                }
+                response = cliente.send(req, HttpResponse.BodyHandlers.ofString());
             } catch (IOException | InterruptedException e) {
 
-            } catch (JSONException e) {
-                System.err.println(e.getMessage());
             }
         } catch (URISyntaxException e) {
 
         }
-        return res;
+
+        return response;
+    }
+
+    ListaSequencial<Produto> extrai_produtos(HttpResponse<String> response) {
+        ListaSequencial<Produto> r = new ListaSequencial<>();
+        var headers = response.headers().map();
+        boolean isJson = headers.get("content-type").stream().anyMatch(x -> x.startsWith("application/json"));
+        if (isJson) {
+            JSONArray jo = new JSONArray(response.body());
+            for (var o : jo) {
+                JSONObject obj = (JSONObject) o;
+                r.adiciona(Produto.fromJson(obj));
+            }
+        }
+        return r;
+    }
+
+    ListaSequencial<Produto> busca_proximo(String produto, int inicio) {
+        HttpResponse<String> response = envia(produto, inicio);
+        if (response != null) {
+            int status = response.statusCode();
+            if (status == 200 || status == 206) {
+                return extrai_produtos(response);
+            }
+        }
+
+        return null;
     }
 
     public Resultado busca(String produto) {
-        return busca(produto, 0);
+        Resultado res = null;
+
+        HttpResponse<String> response = envia(produto, 0);
+        if (response != null) {
+            int status = response.statusCode();
+            if (status == 200 || status == 206) {
+                ListaSequencial<Produto> r = extrai_produtos(response);
+                var headers = response.headers().map();
+
+                String faixa = headers.get("resources").getFirst();
+                var m = re_resources.matcher(faixa);
+                int inicio = 0;
+                int fim = r.comprimento() - 1, total = fim;
+                if (m.find()) {
+                    inicio = Integer.parseInt(m.group(1));
+                    fim = Integer.parseInt(m.group(2));
+                    total = Integer.parseInt(m.group(3));
+                    fim = Math.min(fim, total);
+                }
+                res = new Resultado(this, produto, r, total);
+            }
+        }
+        return res;
     }
+
 
     public Produto obtem(String produto_id) {
         Produto prod = null;

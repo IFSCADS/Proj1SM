@@ -1,4 +1,6 @@
 import esd.ListaSequencial;
+import sm.Bistek;
+import sm.Fort;
 import sm.Giassi;
 import sm.Produto;
 
@@ -16,28 +18,31 @@ public class Main {
 //            }
 //        }
         // cria um acessador para o Giassi
-        Giassi sm = new Giassi();
+        var sm = new Fort();
 
         // procura todos produtos cujo nome contenha "tapioca"
         var res = sm.busca("arroz");
 
         if (res != null) {
-            // Mostra cada um dos produtos encontrados
-            ListaSequencial<Produto> produtos = res.produtos();
-
-            for (int pos = 0; pos < produtos.comprimento(); pos++) {
-                IO.println(produtos.obtem(pos));
+            for (var prod: res) {
+                IO.println(prod);
             }
-            if (res.restantes() > 0) {
-                res = sm.busca_proximo(res);
-                produtos = res.produtos();
-
-                for (int pos = 0; pos < produtos.comprimento(); pos++) {
-                    IO.println(produtos.obtem(pos));
-                }
-
-            }
-
+//            // Mostra cada um dos produtos encontrados
+//            ListaSequencial<Produto> produtos = res.produtos();
+//
+//            for (int pos = 0; pos < produtos.comprimento(); pos++) {
+//                IO.println(produtos.obtem(pos));
+//            }
+//            if (res.restantes() > 0) {
+//                res = sm.busca_proximo(res);
+//                produtos = res.produtos();
+//
+//                for (int pos = 0; pos < produtos.comprimento(); pos++) {
+//                    IO.println(produtos.obtem(pos));
+//                }
+//
+//            }
+//
         }
 
     }
