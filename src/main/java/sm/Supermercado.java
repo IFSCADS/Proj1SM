@@ -13,72 +13,120 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
 
 public class Supermercado {
 
     HttpClient cliente;
     String url;
+    final Pattern re_resources = Pattern.compile("(\\d+)-(\\d+)/(\\d+)", Pattern.CASE_INSENSITIVE);
+    final int query_len = 40;
+
+    public record Resultado(String produto, ListaSequencial<Produto> produtos, int ultimo, int restantes) {}
 
     public Supermercado(String url)  {
         cliente = HttpClient.newHttpClient();
         this.url = url+ "/api/catalog_system/pub/products/search/";
     }
 
-    public ListaSequencial<Produto> busca(String produto) throws URISyntaxException {
-        String url = this.url + "?ft=" + URLEncoder.encode(produto, StandardCharsets.UTF_8);
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(new URI(url))
-                .GET()
-                .setHeader("user-agent", "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0")
-                .build();
+    String make_url(String produto, int inicio) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(this.url);
+        sb.append("?ft=");
+        sb.append(URLEncoder.encode(produto, StandardCharsets.UTF_8));
+        sb.append("&_from=");
+        sb.append(Integer.toString(inicio));
+        sb.append("&_to=");
+        sb.append(Integer.toString(inicio+query_len));
 
-        ListaSequencial<Produto> r = new ListaSequencial<>();
-        try {
-            HttpResponse<String> response = cliente.send(req, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 200) {
-                var headers = response.headers().map();
-                boolean isJson = headers.get("content-type").stream().anyMatch(x -> x.startsWith("application/json"));
-                if (isJson) {
-                    JSONArray jo = new JSONArray(response.body());
-                    for (var o: jo) {
-                        JSONObject obj = (JSONObject)o;
-                        r.adiciona(Produto.fromJson(obj));
-                    }
-                }
-            }
-        } catch (IOException | InterruptedException e ) {
-
-        } catch (JSONException e) {
-            System.err.println(e.getMessage());
-        }
-
-        return r;
+        return sb.toString();
     }
 
-    public Produto obtem(String produto_id) throws URISyntaxException {
-        String url = this.url + "?fq=productId:" + URLEncoder.encode(produto_id, StandardCharsets.UTF_8);
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(new URI(url))
-                .GET()
-                .setHeader("user-agent", "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0")
-                .build();
+    public Resultado busca_proximo(Resultado previo) {
+        if (previo.restantes() > 0) {
+            return busca(previo.produto(), previo.ultimo() + 1);
+        }
+        return null;
+    }
 
+    public Resultado busca(String produto, int inicio) {
+        Resultado res = null;
+
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(new URI(make_url(produto, inicio)))
+                    .GET()
+                    .setHeader("user-agent", "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0")
+                    .build();
+
+
+            try {
+                HttpResponse<String> response = cliente.send(req, HttpResponse.BodyHandlers.ofString());
+                int status = response.statusCode();
+                if (status == 200 || status == 206) {
+                    ListaSequencial<Produto> r = new ListaSequencial<>();
+                    var headers = response.headers().map();
+                    boolean isJson = headers.get("content-type").stream().anyMatch(x -> x.startsWith("application/json"));
+                    if (isJson) {
+                        JSONArray jo = new JSONArray(response.body());
+                        for (var o : jo) {
+                            JSONObject obj = (JSONObject) o;
+                            r.adiciona(Produto.fromJson(obj));
+                        }
+                    }
+
+                    String faixa = headers.get("resources").getFirst();
+                    var m = re_resources.matcher(faixa);
+                    int fim = inicio + r.comprimento() - 1, total = fim;
+                    if (m.find()) {
+                        inicio = Integer.parseInt(m.group(1));
+                        fim = Integer.parseInt(m.group(2));
+                        total = Integer.parseInt(m.group(3));
+                        fim = Math.min(fim, total);
+                    }
+                    res = new Resultado(produto, r, fim, total - fim);
+                }
+            } catch (IOException | InterruptedException e) {
+
+            } catch (JSONException e) {
+                System.err.println(e.getMessage());
+            }
+        } catch (URISyntaxException e) {
+
+        }
+        return res;
+    }
+
+    public Resultado busca(String produto) {
+        return busca(produto, 0);
+    }
+
+    public Produto obtem(String produto_id) {
         Produto prod = null;
         try {
-            HttpResponse<String> response = cliente.send(req, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 200) {
-                var headers = response.headers().map();
-                boolean isJson = headers.get("content-type").stream().anyMatch(x -> x.startsWith("application/json"));
-                if (isJson) {
-                    JSONArray jo = new JSONArray(response.body());
-                    prod = Produto.fromJson(jo.getJSONObject(0));
-                }
-            }
-        } catch (IOException | InterruptedException e ) {
+            String url = this.url + "?fq=productId:" + URLEncoder.encode(produto_id, StandardCharsets.UTF_8);
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(new URI(url))
+                    .GET()
+                    .setHeader("user-agent", "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0")
+                    .build();
 
-        } catch (JSONException e) {
-            System.err.println(e.getMessage());
-        }
+            try {
+                HttpResponse<String> response = cliente.send(req, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() == 200) {
+                    var headers = response.headers().map();
+                    boolean isJson = headers.get("content-type").stream().anyMatch(x -> x.startsWith("application/json"));
+                    if (isJson) {
+                        JSONArray jo = new JSONArray(response.body());
+                        prod = Produto.fromJson(jo.getJSONObject(0));
+                    }
+                }
+            } catch (IOException | InterruptedException e) {
+
+            } catch (JSONException e) {
+                System.err.println(e.getMessage());
+            }
+        } catch (URISyntaxException e) {}
 
         return prod;
     }
