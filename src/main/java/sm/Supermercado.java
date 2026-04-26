@@ -146,6 +146,21 @@ public class Supermercado {
         return null;
     }
 
+    int[] obtem_info_paginas(HttpResponse<String> response) {
+        var headers = response.headers().map();
+
+        String faixa = headers.get("resources").getFirst();
+        var m = re_resources.matcher(faixa);
+        int paginas[] = {0, 9, 10};
+        if (m.find()) {
+            paginas[0] = Integer.parseInt(m.group(1));
+            paginas[1] = Integer.parseInt(m.group(2));
+            paginas[2] = Integer.parseInt(m.group(3));
+            paginas[1] = Math.min(paginas[1], paginas[2]);
+        }
+        return paginas;
+    }
+
     public Resultado busca(String produto) {
         Resultado res = null;
 
@@ -154,19 +169,20 @@ public class Supermercado {
             int status = response.statusCode();
             if (status == 200 || status == 206) {
                 ListaSequencial<Produto> r = extrai_produtos(response);
-                var headers = response.headers().map();
+//                var headers = response.headers().map();
 
-                String faixa = headers.get("resources").getFirst();
-                var m = re_resources.matcher(faixa);
-                int inicio = 0;
-                int fim = r.comprimento() - 1, total = fim;
-                if (m.find()) {
-                    inicio = Integer.parseInt(m.group(1));
-                    fim = Integer.parseInt(m.group(2));
-                    total = Integer.parseInt(m.group(3));
-                    fim = Math.min(fim, total);
-                }
-                res = new Resultado(this, produto, r, total);
+                int[] faixa = obtem_info_paginas(response);
+//                String faixa = headers.get("resources").getFirst();
+//                var m = re_resources.matcher(faixa);
+//                int inicio = 0;
+//                int fim = r.comprimento() - 1, total = fim;
+//                if (m.find()) {
+//                    inicio = Integer.parseInt(m.group(1));
+//                    fim = Integer.parseInt(m.group(2));
+//                    total = Integer.parseInt(m.group(3));
+//                    fim = Math.min(fim, total);
+//                }
+                res = new Resultado(this, produto, r, faixa[2]);
             }
         }
         return res;
