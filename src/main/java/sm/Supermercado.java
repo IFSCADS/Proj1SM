@@ -15,7 +15,11 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.Spliterator;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class Supermercado {
 
@@ -40,6 +44,45 @@ public class Supermercado {
         @Override
         public Iterador iterator() {
             return new Iterador(produtos, total);
+        }
+
+        public Stream<Produto> stream() {
+            return StreamSupport.stream(new ResultIterator(this), false);
+        }
+
+        class ResultIterator implements Spliterator<Produto> {
+            Iterador it;
+
+            ResultIterator(Resultado res) {
+                this.it = res.iterator();
+            }
+
+            public void forEachRemaining(Consumer<? super Produto> action) {
+                while (it.hasNext()) {
+                    action.accept(it.next());
+                }
+            }
+
+            public boolean tryAdvance(Consumer<? super Produto> action) {
+                if (it.hasNext()) {
+                    action.accept(it.next());
+                    return true;
+                }
+                else // cannot advance
+                    return false;
+            }
+
+            public Spliterator<Produto> trySplit() {
+                return null;
+            }
+
+            public long estimateSize() {
+                return (long)(it.total - it.inicio);
+            }
+
+            public int characteristics() {
+                return ORDERED | SIZED | IMMUTABLE | SUBSIZED;
+            }
         }
 
         class Iterador implements Iterator<Produto> {

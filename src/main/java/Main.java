@@ -24,9 +24,10 @@ public class Main {
         var res = sm.busca("arroz");
 
         if (res != null) {
-            for (var prod: res) {
-                IO.println(prod);
-            }
+            res.stream().filter(x -> x.getNome().matches("^[aA]rroz\\s.*")).forEach(x -> IO.println(x));
+//            for (var prod: res) {
+//                IO.println(prod);
+//            }
 //            // Mostra cada um dos produtos encontrados
 //            ListaSequencial<Produto> produtos = res.produtos();
 //
