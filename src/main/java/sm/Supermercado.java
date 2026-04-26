@@ -140,12 +140,22 @@ public class Supermercado {
         return sb.toString();
     }
 
-    HttpResponse<String> envia(String produto, int inicio) {
+    String make_get_url(String produtoId) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(this.url);
+        sb.append("?fq=productId:");
+        sb.append(produtoId);
+
+        return sb.toString();
+    }
+
+
+    HttpResponse<String> envia(String url) {
         HttpResponse<String> response = null;
 
         try {
             HttpRequest req = HttpRequest.newBuilder()
-                    .uri(new URI(make_url(produto, inicio)))
+                    .uri(new URI(url))
                     .GET()
                     .setHeader("user-agent", "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0")
                     .build();
@@ -178,7 +188,7 @@ public class Supermercado {
     }
 
     ListaSequencial<Produto> busca_proximo(String produto, int inicio) {
-        HttpResponse<String> response = envia(produto, inicio);
+        HttpResponse<String> response = envia(make_url(produto, inicio));
         if (response != null) {
             int status = response.statusCode();
             if (status == 200 || status == 206) {
@@ -207,24 +217,14 @@ public class Supermercado {
     public Resultado busca(String produto) {
         Resultado res = null;
 
-        HttpResponse<String> response = envia(produto, 0);
+        HttpResponse<String> response = envia(make_url(produto, 0));
         if (response != null) {
             int status = response.statusCode();
             if (status == 200 || status == 206) {
                 ListaSequencial<Produto> r = extrai_produtos(response);
-//                var headers = response.headers().map();
 
                 int[] faixa = obtem_info_paginas(response);
-//                String faixa = headers.get("resources").getFirst();
-//                var m = re_resources.matcher(faixa);
-//                int inicio = 0;
-//                int fim = r.comprimento() - 1, total = fim;
-//                if (m.find()) {
-//                    inicio = Integer.parseInt(m.group(1));
-//                    fim = Integer.parseInt(m.group(2));
-//                    total = Integer.parseInt(m.group(3));
-//                    fim = Math.min(fim, total);
-//                }
+
                 res = new Resultado(this, produto, r, faixa[2]);
             }
         }
@@ -234,30 +234,19 @@ public class Supermercado {
 
     public Produto obtem(String produto_id) {
         Produto prod = null;
-        try {
-            String url = this.url + "?fq=productId:" + URLEncoder.encode(produto_id, StandardCharsets.UTF_8);
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(new URI(url))
-                    .GET()
-                    .setHeader("user-agent", "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0")
-                    .build();
 
-            try {
-                HttpResponse<String> response = cliente.send(req, HttpResponse.BodyHandlers.ofString());
-                if (response.statusCode() == 200) {
-                    var headers = response.headers().map();
-                    boolean isJson = headers.get("content-type").stream().anyMatch(x -> x.startsWith("application/json"));
-                    if (isJson) {
-                        JSONArray jo = new JSONArray(response.body());
-                        prod = Produto.fromJson(jo.getJSONObject(0));
-                    }
+        HttpResponse<String> response = envia(make_get_url(produto_id));
+        if (response != null) {
+            int status = response.statusCode();
+            if (status == 200) {
+                var headers = response.headers().map();
+                boolean isJson = headers.get("content-type").stream().anyMatch(x -> x.startsWith("application/json"));
+                if (isJson) {
+                    JSONArray jo = new JSONArray(response.body());
+                    prod = Produto.fromJson(jo.getJSONObject(0));
                 }
-            } catch (IOException | InterruptedException e) {
-
-            } catch (JSONException e) {
-                System.err.println(e.getMessage());
             }
-        } catch (URISyntaxException e) {}
+        }
 
         return prod;
     }

@@ -8,43 +8,25 @@ import java.util.regex.Pattern;
 
 public class Main {
     static void main() {
-//        final Pattern re_resources = Pattern.compile("(\\d+)-(\\d+)/(\\d+)", Pattern.CASE_INSENSITIVE);
-//
-//        String res = "0-9/135";
-//        var m = re_resources.matcher(res);
-//        if (m.find()) {
-//            for (int i=0; i <= m.groupCount(); i++) {
-//                IO.println(m.group(i));
-//            }
-//        }
-        // cria um acessador para o Giassi
+
+        // cria um acessador para o Fort
         var sm = new Fort();
+
+//        var p = sm.obtem("143235");
+//        IO.println(p);
 
         // procura todos produtos cujo nome contenha "tapioca"
         var res = sm.busca("arroz");
 
         if (res != null) {
-            res.stream().filter(x -> x.getNome().matches("^[aA]rroz\\s.*")).forEach(x -> IO.println(x));
-//            for (var prod: res) {
+            // itera com api streams
+            res.stream()
+                    .filter(x -> x.getNome().matches("^[aA]rroz\\s.*"))
+                    .forEach(x -> IO.println(x));
+            // ... ou com iteração usual
+//            for (var prod : res) {
 //                IO.println(prod);
 //            }
-//            // Mostra cada um dos produtos encontrados
-//            ListaSequencial<Produto> produtos = res.produtos();
-//
-//            for (int pos = 0; pos < produtos.comprimento(); pos++) {
-//                IO.println(produtos.obtem(pos));
-//            }
-//            if (res.restantes() > 0) {
-//                res = sm.busca_proximo(res);
-//                produtos = res.produtos();
-//
-//                for (int pos = 0; pos < produtos.comprimento(); pos++) {
-//                    IO.println(produtos.obtem(pos));
-//                }
-//
-//            }
-//
         }
-
     }
 }
