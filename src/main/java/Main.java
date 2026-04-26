@@ -24,9 +24,9 @@ public class Main {
                     .filter(x -> x.getNome().matches("^[aA]rroz\\s.*"))
                     .forEach(x -> IO.println(x));
             // ... ou com iteração usual
-//            for (var prod : res) {
-//                IO.println(prod);
-//            }
+            for (var prod : res) {
+                IO.println(prod);
+            }
         }
     }
 }

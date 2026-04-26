@@ -88,7 +88,7 @@ public class Supermercado {
         class Iterador implements Iterator<Produto> {
             int total;
             int inicio = 0;
-            int pos = 0;
+//            int pos = 0;
             ListaSequencial<Produto> produtos;
 
             Iterador(ListaSequencial<Produto> produtos, int total) {
@@ -98,7 +98,7 @@ public class Supermercado {
 
             @Override
             public boolean hasNext() {
-                return total > inicio + pos;
+                return total > inicio;
             }
 
             @Override
@@ -106,13 +106,16 @@ public class Supermercado {
                 if (! hasNext()) {
                     throw new NoSuchElementException("fim da iteração");
                 }
-                Produto prod = produtos.obtem(pos++);
-                if (pos >= produtos.comprimento()) {
-                    inicio = produtos.comprimento() + inicio;
+                Produto prod = produtos.obtem(inicio++);
+                if (inicio >= produtos.comprimento()) {
+//                    inicio = produtos.comprimento() + inicio;
                     if (inicio < total) {
-                        produtos = sm.busca_proximo(produto, inicio);
+                        var mais_produtos = sm.busca_proximo(produto, inicio);
                         if (produtos != null) {
-                            pos = 0;
+                            for (int j=0; j < mais_produtos.comprimento(); j++) {
+                                produtos.adiciona(mais_produtos.obtem(j));
+                            }
+//                            pos = 0;
                         }
                     }
                 }
